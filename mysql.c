@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <mysql/mysql.h>
 #include <string.h>
+#include <openssl/md5.h>
+
 #define authenticateSql = "SELECT user_id FROM users WHERE user_id = "
 #define getNotesSql = "SELECT notes FROM userNotes WHERE user_id = "
 
@@ -58,9 +60,17 @@ char* getUserEmail(char* user, MYSQL *con)
 	return email;
 }
 
+char* getMD5hash(char* string) 
+{
+	unsigned char* result = malloc(MD5_DIGEST_LENGTH);
+ 	MD5(string, strlen(string), result);
+
+ 	return result;
+}
+
 char* getUserNotes(char* user, MYSQL *con)
 {
-char buf[BUFSIZ] = "SELECT user_notes FROM user_notes WHERE user_id = ";
+	char buf[BUFSIZ] = "SELECT user_notes FROM user_notes WHERE user_id = ";
 	char *notes;
 	strcat(buf, user);
 

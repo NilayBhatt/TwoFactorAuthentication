@@ -11,7 +11,7 @@ void finish_with_error(MYSQL *con)
 {
 	fprintf(stderr, "%s\n", mysql_error(con));
 	mysql_close(con);
-	exit(1);        
+	//exit(1);        
 }
 
 int authenticateUser(char* password, char* user, MYSQL *con) 
@@ -54,7 +54,7 @@ char* getUserEmail(char* user, MYSQL *con)
 	if(mysql_num_fields(result) > 0) 
 	{
 		MYSQL_ROW row = mysql_fetch_row(result);
-		 email = row[0];
+		email = row[0];
 	}
 
 	return email;
@@ -63,15 +63,14 @@ char* getUserEmail(char* user, MYSQL *con)
 char* getMD5hash(char* string) 
 {
 	unsigned char* result = malloc(MD5_DIGEST_LENGTH);
- 	MD5(string, strlen(string), result);
+	MD5(string, strlen(string), result);
 
- 	return result;
+	return result;
 }
 
-char* getUserNotes(char* user, MYSQL *con)
+char[][][] getUserNotes(char* user, MYSQL *con)
 {
-	char buf[BUFSIZ] = "SELECT user_notes FROM user_notes WHERE user_id = ";
-	char *notes;
+	char buf[BUFSIZ] = "SELECT notes_id, title, body FROM user_notes WHERE fk_user_id = ";
 	strcat(buf, user);
 
 	if (mysql_query(con, buf)) 
@@ -80,15 +79,72 @@ char* getUserNotes(char* user, MYSQL *con)
 	}
 
 	MYSQL_RES *result = mysql_store_result(con);
+	int num_fields = mysql_num_fields(result);
 
-	if(mysql_num_fields(result) > 0) 
-	{
-		MYSQL_ROW row = mysql_fetch_row(result);
-		 notes = row[0];
+	MYSQL_ROW row;
+	char notesArray[10][10][10];
+	int i = 0;
+	while ((row = mysql_fetch_row(result))) 
+	{ 
+		
+		char* id, title, body;
+		char *token;
+
+		id = row[0];
+		title = row[1];
+		body = row[2];
+
+		notesArray[i][i][i] = {id, title, body}; 
+		i++;
+		//printf("%s ", row[i] ? row[i] : "NULL"); 
+		printf("\n"); 
 	}
 
-	return notes;	
+	return notesArray;	
 }
+
+int deleteNote(char* id, MYSQL* con)
+{
+	char buf[BUFSIZ] = "DELETE * FROM user_notes WHERE fk_user_id = ";
+	strcat(buf, user);
+
+	if (mysql_query(con, buf)) 
+	{
+		finish_with_error(con);
+		return 0;
+	}
+
+	return 1;
+}
+
+
+int addUser(char* username, char* email, char* password, char* FirstName, char* LastName, MYSQL *con)
+{
+	char buf[BUFSIZ] = "INSERT INTO users (user_id, password, user_email, user,FirstName, user_Lastname) VALUES ( ";
+	
+	char* passwordHash = getMD5hash(password);
+	strcat(buf, username);
+	strcat(buf, ", ");
+	strcat(buf, passwordHash);
+	strcat(buf, ", ");
+	strcat(buf, email);
+	strcat(buf, ", ");
+	strcat(buf, FirstName);
+	strcat(buf, ", ");
+	strcat(buf, LastName);
+	strcat(buf, " )");
+
+	if (mysql_query(con, buf)) 
+	{
+		finish_with_error(con);
+		return 0;
+	}
+
+	return 1
+	
+}
+
+
 int main(int argc, char **argv)
 {      
 	MYSQL *con = mysql_init(NULL);

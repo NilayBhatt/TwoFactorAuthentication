@@ -16,3 +16,6 @@ User can start the program and login screen can appear. The user can then type t
 
 
 Enjoy!
+
+PS: in order to compile you need mysql and open ssl libraries
+gcc mysql.c -o mysql.out $(mysql_config --libs) -lcrypto

@@ -105,7 +105,7 @@ char[][][] getUserNotes(char* user, MYSQL *con)
 
 int deleteNote(char* id, MYSQL* con)
 {
-	char buf[BUFSIZ] = "DELETE * FROM user_notes WHERE fk_user_id = ";
+	char buf[BUFSIZ] = "DELETE * FROM user_notes WHERE notes_id = ";
 	strcat(buf, user);
 
 	if (mysql_query(con, buf)) 

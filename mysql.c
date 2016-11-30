@@ -34,7 +34,27 @@ int authenticateUser(char* password, char* user, MYSQL *con)
 	}
 
 	return 0;
+}
 
+int addNotes(char* title, char* body, char* user_id, MYSQL* con)
+{
+	char buf[BUFSIZ] = "INSERT INTO users_notes (fk_user_id, title, body) VALUES ( ";
+	
+	//char* passwordHash = getMD5hash(password);
+	strcat(buf, user_id);
+	strcat(buf, ", ");
+	strcat(buf, title);
+	strcat(buf, ", ");
+	strcat(buf, body);
+	strcat(buf, " )");
+	printf("%s\n", buf);
+	if (mysql_query(con, buf)) 
+	{
+		finish_with_error(con);
+		return 0;
+	}
+
+	return 1;
 
 }
 

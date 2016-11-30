@@ -68,7 +68,7 @@ char* getMD5hash(char* string)
 	return result;
 }
 
-char[][][] getUserNotes(char* user, MYSQL *con)
+char** getUserNotes(char* user, MYSQL *con)
 {
 	char buf[BUFSIZ] = "SELECT notes_id, title, body FROM user_notes WHERE fk_user_id = ";
 	strcat(buf, user);
@@ -82,19 +82,17 @@ char[][][] getUserNotes(char* user, MYSQL *con)
 	int num_fields = mysql_num_fields(result);
 
 	MYSQL_ROW row;
-	char notesArray[10][10][10];
+	char** notesArray;
 	int i = 0;
 	while ((row = mysql_fetch_row(result))) 
 	{ 
-		
-		char* id, title, body;
-		char *token;
+		// char id[8192] = {row[0]};
+		// char title[8192] = {row[1]};
+		// char body[8192] = {row[2]};
 
-		id = row[0];
-		title = row[1];
-		body = row[2];
-
-		notesArray[i][i][i] = {id, title, body}; 
+		notesArray[i][0] = (*row[0]);
+		notesArray[i][1] = *row[1];
+		notesArray[i][2] = *row[2];
 		i++;
 		//printf("%s ", row[i] ? row[i] : "NULL"); 
 		printf("\n"); 
@@ -106,7 +104,7 @@ char[][][] getUserNotes(char* user, MYSQL *con)
 int deleteNote(char* id, MYSQL* con)
 {
 	char buf[BUFSIZ] = "DELETE * FROM user_notes WHERE notes_id = ";
-	strcat(buf, user);
+	strcat(buf, id);
 
 	if (mysql_query(con, buf)) 
 	{
@@ -140,7 +138,7 @@ int addUser(char* username, char* email, char* password, char* FirstName, char* 
 		return 0;
 	}
 
-	return 1
+	return 1;
 	
 }
 

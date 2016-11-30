@@ -65,7 +65,7 @@ char* getMD5hash(char* string)
 	unsigned char* result = malloc(MD5_DIGEST_LENGTH);
 	MD5(string, strlen(string), result);
 
-	return result;
+	return (char*)result;
 }
 
 char** getUserNotes(char* user, MYSQL *con)
@@ -116,14 +116,14 @@ int deleteNote(char* id, MYSQL* con)
 }
 
 
-int addUser(char* username, char* email, char* password, char* FirstName, char* LastName, MYSQL *con)
+int addUser(char* username, char* password, char* email, char* FirstName, char* LastName, MYSQL *con)
 {
-	char buf[BUFSIZ] = "INSERT INTO users (user_id, password, user_email, user,FirstName, user_Lastname) VALUES ( ";
+	char buf[BUFSIZ] = "INSERT INTO users (user_id, password, user_email, user_FirstName, user_Lastname) VALUES ( ";
 	
-	char* passwordHash = getMD5hash(password);
+	//char* passwordHash = getMD5hash(password);
 	strcat(buf, username);
 	strcat(buf, ", ");
-	strcat(buf, passwordHash);
+	strcat(buf, password);
 	strcat(buf, ", ");
 	strcat(buf, email);
 	strcat(buf, ", ");
@@ -131,7 +131,7 @@ int addUser(char* username, char* email, char* password, char* FirstName, char* 
 	strcat(buf, ", ");
 	strcat(buf, LastName);
 	strcat(buf, " )");
-
+	printf("%s\n", buf);
 	if (mysql_query(con, buf)) 
 	{
 		finish_with_error(con);
@@ -183,7 +183,12 @@ int main(int argc, char **argv)
 		} 
 		printf("\n"); 
 	}
+char* temp = getMD5hash("Nilay");
+printf("%s\n", temp);
+	//int temp = addUser("'nilay2'","'lolol'", "'nilaybhatt@my.ccsu.edu'", "'Nilay'", "'Bhatt'", con);
 
+	if(temp)
+			printf("It Works");
 	mysql_free_result(result);
 	mysql_close(con);
 

@@ -1,3 +1,5 @@
+#define _XOPEN_SOURCE
+
 #include <stdio.h>
 #include <strings.h>
 #include <string.h>
@@ -8,6 +10,8 @@
 #include <mysql/mysql.h>
 #include <string.h>
 #include <openssl/md5.h>
+#include <unistd.h>
+#include <time.h>
 
 int status = 0; //0 = logged out, 1 = logged in
 
@@ -15,7 +19,18 @@ int status = 0; //0 = logged out, 1 = logged in
 #define authenticateSql = "SELECT user_id FROM users WHERE user_id = "
 #define getNotesSql = "SELECT * FROM userNotes WHERE user_id = "
 
-static char *payload_text[11];
+char* getEmail(char*);
+int addUser(char*, char*, char*);
+static char result [33];
+void loginCommand(char*, char*);
+void loggedInMessage();
+void loggedInCommands(char *);
+void addNote();
+
+
+int sessionID;
+
+static char *payload_text[13];
 
 void finish_with_error(MYSQL *con){
 	fprintf(stderr, "%s\n", mysql_error(con));
@@ -36,23 +51,23 @@ int addUser(char* username, char* password, char* email){
 		finish_with_error(con);
 	}  
 
-	char buf[BUFSIZ] = "INSERT INTO users (user_id, password, email) VALUES ( ";
+	char buf[BUFSIZ] = "INSERT INTO users (username, password, email) VALUES ( '";
 	
 	//char* passwordHash = getMD5hash(password);
 	strcat(buf, username);
-	strcat(buf, ", ");
+	strcat(buf, "' , '");
 	strcat(buf, password);
-	strcat(buf, ", ");
+	strcat(buf, "' , '");
 	strcat(buf, email);
-	strcat(buf, " )");
-	printf("%s\n", buf);
+	strcat(buf, "' )");
+	
 	if (mysql_query(con, buf)){
 		finish_with_error(con);
-		mysql_free_result(result);
+		//mysql_free_result(result);
 		mysql_close(con);
 		return 0;
 	}
-	mysql_free_result(result);
+	//mysql_free_result(result);
 	mysql_close(con);
 	return 1;
 }
@@ -70,28 +85,33 @@ int authenticateUser(char* user, char* password) {
 		finish_with_error(con);
 	}   
 
-	char buf[BUFSIZ] = "SELECT username FROM users WHERE username = ";
+	char buf[BUFSIZ] = "SELECT username FROM users WHERE username = '";
 	strcat(buf,user);
-	strcat(buf, " AND password = ");
+	strcat(buf, "' AND password = '");
 	strcat(buf, password);
+	strcat(buf, "'");
 
 	if (mysql_query(con, buf)){
 		finish_with_error(con);
+		mysql_close(con);
+		return 0;
 	}
-
-	MYSQL_RES *result = mysql_store_result(con);
-
-	if(mysql_num_fields(result) > 0){
+	else{
+		MYSQL_RES *result = mysql_store_result(con);
+	
+		if(mysql_num_fields(result) > 0){
+			mysql_free_result(result);
+			mysql_close(con);
+			return 1;
+		}
 		mysql_free_result(result);
 		mysql_close(con);
-		return 1;
+		return 0;
 	}
-	mysql_free_result(result);
-	mysql_close(con);
-	return 0;
+
 }
 
-char* getUserEmail(char* user){
+char* getEmail(char* user){
 	MYSQL *con = mysql_init(NULL);
 
 	if (con == NULL){
@@ -104,10 +124,10 @@ char* getUserEmail(char* user){
 		finish_with_error(con);
 	}   
 
-	char buf[BUFSIZ] = "SELECT email FROM users WHERE username = ";
+	char buf[BUFSIZ] = "SELECT email FROM users WHERE username = '";
 	char *email;
 	strcat(buf, user);
-
+	strcat(buf, "'");
 	if (mysql_query(con, buf)){
 		finish_with_error(con);
 	}
@@ -126,10 +146,10 @@ char* getUserEmail(char* user){
 
 char* getMD5hash(char* string) 
 {
-	unsigned char* result = malloc(MD5_DIGEST_LENGTH);
- 	MD5(string, strlen(string), result);
-
+	char *result = crypt(string, "1000");
+	
  	return result;
+ 	
 }
 
 struct upload_status{
@@ -218,9 +238,9 @@ char *welcomeMessage(){
 	printf("\nAvailable commands..\n");
 	printf("\"login\"\t\tWill prompt you for username and password for login\n");
 	printf("\"signup\"\tWill prompt you for a variety of inputs to create an account\n");
-	printf("\"exit\"\t\tWill exit the program\n\n");
+	printf("\"exit\"\t\tWill exit the program\n");
 	while(1){
-		printf("What would you like to do: ");
+		printf("\nWhat would you like to do: ");
 		scanf("%s", command);
 		if(isValidWelcome(command)){
 			break;
@@ -244,34 +264,45 @@ char *getCode(){
 	return newCode;
 }
 
+char *getPasswordInput(){
+	char password[4096];
+	char c;
+	int i;
+	while((c=getc(stdin)) != '\n'){
+		password[i] = c;
+		printf("*");
+		i++;	
+	}
+	password[i] = '\0';
+	return password;
+}
+
 void adjustEmailPayload(char *email, char *code){
-	char temp[200];
-	strcpy(temp, "To: <");
-	strcat(temp, email);
-	strcat(temp, ">\r\n");
-	char temp2[200];
-	strcpy(temp2, "Your verification code is: ");
-	strcat(temp2, code);
-	strcat(temp2, "\r\n");
+	//printf("EMAILAGAIN -> %s", Eemail);
 	payload_text[0] = "Date: Mon, 29 Nov 2010 21:54:29 +1100\r\n";
-	payload_text[1] = temp;
-	payload_text[2] = "From: " FROM "(Pithentication Support)\r\n";
-	payload_text[3] = "Subject: Pithentication Verify Code\r\n";
- 	payload_text[4] =  "\r\n";
- 	payload_text[5] =  "You are one step closer to activating your account!\r\n";
- 	payload_text[6] = "\r\n";
- 	payload_text[7] = "Your verification code is: ";
- 	payload_text[8] = code;
- 	payload_text[9] = "\r\n";
-	payload_text[10] = NULL;
+	payload_text[1] = "To: <\"";
+	payload_text[2] = email;
+	payload_text[3] = "\">\r\n";
+	payload_text[4] = "From: " FROM "(Pithentication Support)\r\n";
+	payload_text[5] = "Subject: Pithentication Verify Code\r\n";
+ 	payload_text[6] =  "\r\n";
+ 	payload_text[7] =  "You are one step closer to activating your account!\r\n";
+ 	payload_text[8] = "\r\n";
+ 	payload_text[9] = "Your verification code is: ";
+ 	payload_text[10] = code;
+ 	payload_text[11] = "\r\n";
+	payload_text[12] = NULL;
+	
+	//printf("EMAIL ->>> %s", payload_text[2]);
 }
 
 void signUpPrompt(){
 	char username[4096];
-	char password[4096];
-	char tempPass[4096];
 	char email[4096];
 	char verCode[9];
+	char password[4096];
+	char tempPass[4096];
+	char temp2Pass[4096];
 	printf("\nYou are one step closer to having your own Pithentication account!\n");
 	while(1){
 		printf("Please enter your desired username (required): ");
@@ -281,14 +312,13 @@ void signUpPrompt(){
 		}
 	}
 	while(1){
-		printf("Please enter your desired password (required): ");
-		scanf("%s", password);
-		printf("Please re-enter your desired password (required): ");
-		scanf("%s", tempPass);
-		if(strcmp(password, tempPass) == 0 && password != NULL){
+		strcpy(tempPass, getpass("Please enter your desired password (required): "));
+		strcpy(temp2Pass, getpass("Please re-enter your desired password (required): "));
+		if(strcmp(temp2Pass, tempPass) == 0 && tempPass != NULL){
+			strcpy(password, getMD5hash(tempPass));
 			break;
 		}
-		printf("\nUh oh! The passwords did not match.. lets try again!");
+		printf("\nUh oh! The passwords did not match.. lets try again!\n");
 	}
 	while(1){
 		printf("Please enter your email (required): ");
@@ -333,10 +363,45 @@ void signUpPrompt(){
 	}
 }
 
+int getID(char *username){
+	
+	MYSQL *con = mysql_init(NULL);
+
+	if (con == NULL){
+		fprintf(stderr, "mysql_init() failed\n");
+		exit(1);
+	}  
+
+	if (mysql_real_connect(con, "localhost", "root", "sa", 
+		"pithentication", 0, NULL, 0) == NULL){
+		finish_with_error(con);
+	}   
+
+	char buf[BUFSIZ] = "SELECT user_id FROM users WHERE username = '";
+	int id; 	
+	strcat(buf, username);
+	strcat(buf, "'");
+	if (mysql_query(con, buf)){
+		finish_with_error(con);
+	}
+
+	MYSQL_RES *result = mysql_store_result(con);
+
+	if(mysql_num_fields(result) > 0){
+		MYSQL_ROW row = mysql_fetch_row(result);
+		 id = atoi(row[0]);
+	}
+	mysql_free_result(result);
+	mysql_close(con);
+
+	return id;
+}
+
 void loginCommand(char *username, char *password){
 	int authStatus = authenticateUser(username, password);
 	if(authStatus){
 		status = 1;
+		sessionID = getID(username);
 		loggedInMessage();
 	}
 	else{
@@ -344,14 +409,54 @@ void loginCommand(char *username, char *password){
 	}
 }
 
+void addNote(){
+	char title[4096];
+	char body[4096];
+	char temp[100];
+	printf("\nPlease enter the title of your note: ");
+	scanf("%s", title);
+	printf("\nPlease enter the body of your note: ");
+	scanf("%s", body);
+	
+	MYSQL *con = mysql_init(NULL);
+
+	if (con == NULL){
+		fprintf(stderr, "mysql_init() failed\n");
+		exit(1);
+	}  
+
+	if (mysql_real_connect(con, "localhost", "root", "sa", 
+		"pithentication", 0, NULL, 0) == NULL){
+		finish_with_error(con);
+	}  
+	
+	char buf[BUFSIZ] = "INSERT INTO notes (user_id, title, body) VALUES ( ";
+	sprintf(temp, "%d", sessionID);
+	//char* passwordHash = getMD5hash(password);
+	strcat(buf, temp);
+	strcat(buf, ", '");
+	strcat(buf, title);
+	strcat(buf, "', '");
+	strcat(buf, body);
+	strcat(buf, "' )");
+
+	if (mysql_query(con, buf)) 
+	{
+		finish_with_error(con);
+		return 0;
+	}
+
+	return 1;
+	
+}
+
 void loginPrompt(){
 	char username[4096];
-	char password[4096];
 	printf("\nWelcome to Pithentication! Please login to your account below.\n");
 	printf("Please enter your username: ");
 	scanf("%s", username);
-	printf("Please enter your password: ");
-	scanf("%s", password);
+	char *tempPassword = getpass("Please enter your password: ");
+	char *password = getMD5hash(tempPassword);
 	//DBmethodToGetEmailBasedOnUsername
 	//char *email = getEmail(username);
 	//char *code = getCode();
@@ -367,22 +472,59 @@ void loginPrompt(){
 		code[8] = '\0';
 		char *newCode = code;
 		char verCode[9];
-		char *email = getEmail(username);
-		adjustEmailPayload(email, code);
-		int emailStatus = emailCode(email);
+		char newEmail[4096];
+	
+		strcpy(newEmail,getEmail(username));
+		adjustEmailPayload(newEmail, code);
+		
+		
+		int emailStatus = emailCode(newEmail);
+		
+		
 		printf("A verification code has been sent to your registered email..");
 		printf("\nPlease enter the verification code: ");
 		scanf("%s", verCode);
 		if(strcmp(newCode, verCode) == 0){
 			loginCommand(username, password);
 		}
+		else{
+				printf("\nUh oh! You've entered the wrong verification code.. Ending program.\n");
+				exit(0);
+		}
+	}
+	else{
+		printf("Username password combo does not match anything we have in our records.. Ending program.\n");
+		exit(0);
 	}
 }
 
+void loggedInCommands(char *key){
+	if(strcmp(key, "addnote") == 0){
+			addNote();
+			printf("\nCongratulations!!! You created a note. You can look at it in the DB. Good Bye! \n"); 
+	}
+	else if(strcmp(key, "logout") == 0){
+		printf("\nGoodbye, have a great day!");
+		
+	}
+	exit(0);
+}
+
 void loggedInMessage(){
-	printf("\nCongratulations! You are now logged in.");
-	printf("\nYou now have access teo the following commands: ");
-	printf("\nEat my ass;;;;;");
+	printf("\n\n*********************************************");
+	printf("\n*                                           *");
+	printf("\n*  Congratulations! You are now logged in.  *");
+	printf("\n*                                           *");
+	printf("\n*********************************************\n\n");
+	
+	printf("\nNow that you are logged in, you have access to the following commands:\n");
+	printf("\n\"addnote\"\t\tWill create a new note and add it to your account.");
+	printf("\n\"logout\"\t\tWill log you out...............");
+	
+	char command[4096];
+	printf("\n\nEnter your next command: ");
+	scanf("%s", command);
+	loggedInCommands(command);
 }
 
 void welcomeSwitch(char *key){
@@ -393,12 +535,17 @@ void welcomeSwitch(char *key){
 		signUpPrompt();
 	}
 	else if(strcmp(key, "exit") == 0){
-		printf("\nGoodbye, have a great day!\n\n");
+		printf("\nGoodbye, have a great day!\n\n\n");
+		exit(0);
+	}
+	else{
+		printf("\nYour command is not recognized... Ending program.\n");
 		exit(0);
 	}
 }
 
 int main(int argc, char *argv[]){
+	srand(time(NULL));
 	//print introductory message
 	char *welcomeChar = welcomeMessage();
 	//switch statement for scanf -- either login or sign up

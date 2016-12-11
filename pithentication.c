@@ -15,7 +15,7 @@
 
 int status = 0; //0 = logged out, 1 = logged in
 
-#define FROM "<edmiralagic@gmail.com>"
+#define FROM "<someemail@gmail.com>"
 #define authenticateSql = "SELECT user_id FROM users WHERE user_id = "
 #define getNotesSql = "SELECT * FROM userNotes WHERE user_id = "
 
@@ -188,8 +188,8 @@ int emailCode(char *email){
   curl = curl_easy_init();
   if(curl) {
     /* Set username and password */ 
-    curl_easy_setopt(curl, CURLOPT_USERNAME, "edmiralagic@gmail.com");
-    curl_easy_setopt(curl, CURLOPT_PASSWORD, "Eadlmaigr2212");
+    curl_easy_setopt(curl, CURLOPT_USERNAME, "someemail@gmail.com");
+    curl_easy_setopt(curl, CURLOPT_PASSWORD, "somepassword");
     curl_easy_setopt(curl, CURLOPT_URL, "smtps://smtp.gmail.com:465");
  
 	#ifdef SKIP_PEER_VERIFICATION
